@@ -1,0 +1,13 @@
+{
+    "kernel": [
+        "",
+        "ACPI BIOS Error \\(bug\\): Failure creating named object .* AE_ALREADY_EXISTS .*",
+        "ACPI Error: AE_ALREADY_EXISTS, CreateBufferField failure .*",
+        "ACPI Error: Aborting method .* due to previous error \\(AE_ALREADY_EXISTS\\) .*",
+        "gspca_vc032x: reg_r err -32",
+        "vc032x 1-2\\.1:1\\.0: probe with driver vc032x failed with error -32"
+    ],
+    "gdm-password]": [
+        "gkr-pam: unable to locate daemon control file"
+    ]
+}
