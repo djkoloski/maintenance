@@ -34,7 +34,7 @@ async fn run_checks() -> Result<()> {
 
     let _handle = tokio::spawn(async {
         let err = resource.await;
-        error!("Lost connection to D-Bus: {err:?}");
+        error!("lost connection to D-Bus: {err:?}");
     });
 
     let notifications = Notifications::start(connection.clone())
@@ -144,9 +144,9 @@ async fn check_updates(notifications: Notifications) -> Result<()> {
     let summary = "Updates available";
     let body = if count == 1 {
         let package = updates.split_once(' ').unwrap_or((updates, "")).0;
-        format!("'{package}' is ready to install.")
+        format!("'{package}' is ready to update.")
     } else {
-        format!("{count} packages are ready to install.")
+        format!("{count} packages are ready to update.")
     };
 
     let mut hints = HashMap::new();
