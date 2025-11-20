@@ -105,14 +105,14 @@ async fn check_systemctl_failures(notifications: Notifications) -> Result<()> {
             "dialog-warning-symbolid",
             summary,
             &body,
-            vec!["investigate", "Investigate"],
+            vec!["default", "Investigate"],
             hints,
             -1,
         )
         .await?;
 
     if let Notification::ActionInvoked(action_invoked) = response {
-        assert_eq!(action_invoked.arg_1, "investigate");
+        assert_eq!(action_invoked.arg_1, "default");
 
         Command::new("/usr/bin/kgx")
             .arg("--command=systemctl --failed")
@@ -159,14 +159,14 @@ async fn check_updates(notifications: Notifications) -> Result<()> {
             "software-update-available",
             summary,
             &body,
-            vec!["update", "Update"],
+            vec!["default", "Update"],
             hints,
             -1,
         )
         .await?;
 
     if let Notification::ActionInvoked(action_invoked) = response {
-        assert_eq!(action_invoked.arg_1, "update");
+        assert_eq!(action_invoked.arg_1, "default");
 
         Command::new("/usr/bin/kgx")
             .arg("--command=sudo pacman -Syu")
@@ -299,14 +299,14 @@ async fn check_journalctl_errors(notifications: Notifications) -> Result<()> {
             "dialog-warning-symbolic",
             summary,
             &body,
-            vec!["view", "View Errors"],
+            vec!["default", "View Errors"],
             hints,
             -1,
         )
         .await?;
 
     if let Notification::ActionInvoked(action_invoked) = response {
-        assert_eq!(action_invoked.arg_1, "view");
+        assert_eq!(action_invoked.arg_1, "default");
 
         Command::new("/usr/bin/xdg-open")
             .arg("journalctl_new.log")
