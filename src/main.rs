@@ -22,14 +22,18 @@ async fn main() {
 
     info!("running maintenance");
 
-    if let Err(e) = run_checks().await {
+    if let Err(e) = with_notifications(run_checks).await {
         error!("encountered an internal error: {e:?}");
     }
 
     info!("finished");
 }
 
-async fn run_checks() -> Result<()> {
+async fn with_notifications<F, O>(f: F) -> Result<()>
+where
+    F: FnOnce(Notifications) -> O,
+    O: Future<Output = Result<()>>,
+{
     let (resource, connection) = connection::new_session_sync()?;
 
     let _handle = tokio::spawn(async {
@@ -41,6 +45,36 @@ async fn run_checks() -> Result<()> {
         .await
         .context("failed to start notifications")?;
 
+    let result = f(notifications.clone()).await;
+
+    if let Err(e) = result {
+        let body = format!("Encountered an error while running maintenance: {e:?}");
+        let mut hints = HashMap::new();
+        hints.insert("urgency".to_string(), Variant(Box::new(2u8) as _));
+
+        notifications
+            .notify(
+                "Maintenance",
+                0,
+                "dialog-error-symbolic",
+                "Maintenance failed",
+                &body,
+                Vec::new(),
+                hints,
+                -1,
+            )
+            .await?;
+    }
+
+    notifications
+        .stop()
+        .await
+        .context("failed to stop notifications")?;
+
+    Ok(())
+}
+
+async fn run_checks(notifications: Notifications) -> Result<()> {
     check_systemctl_failures(notifications.clone())
         .await
         .context("failed to check systemctl failures")?;
@@ -50,11 +84,6 @@ async fn run_checks() -> Result<()> {
     check_updates(notifications.clone())
         .await
         .context("failed to check for updates")?;
-
-    notifications
-        .stop()
-        .await
-        .context("failed to stop notifications")?;
 
     Ok(())
 }
@@ -219,7 +248,7 @@ impl<'de> Deserialize<'de> for JournalctlAllow {
 
 #[derive(Deserialize)]
 struct JournalctlEntry {
-    #[serde(rename(deserialize = "SYSLOG_IDENTIFIER"))]
+    #[serde(rename(deserialize = "SYSLOG_IDENTIFIER"), default)]
     identifier: String,
     #[serde(rename(deserialize = "MESSAGE"))]
     message: Option<String>,
