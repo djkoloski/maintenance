@@ -5,13 +5,12 @@ use core::fmt::{self, Write as _};
 use std::{collections::HashMap, env, path::PathBuf};
 
 use anyhow::{Context as _, Result};
-use dbus::arg::Variant;
-use dbus_tokio::connection;
 use log::{LevelFilter, error, info};
 use regex::RegexSet;
 use serde::{Deserialize, Deserializer, de};
 use systemd_journal_logger::JournalLog;
 use tokio::{fs, process::Command};
+use zbus::Connection;
 
 use crate::notifications::{Notification, Notifications};
 
@@ -34,14 +33,9 @@ where
     F: FnOnce(Notifications) -> O,
     O: Future<Output = Result<()>>,
 {
-    let (resource, connection) = connection::new_session_sync()?;
+    let connection = Connection::session().await?;
 
-    let _handle = tokio::spawn(async {
-        let err = resource.await;
-        error!("lost connection to D-Bus: {err:?}");
-    });
-
-    let notifications = Notifications::start(connection.clone())
+    let notifications = Notifications::start(&connection)
         .await
         .context("failed to start notifications")?;
 
@@ -49,8 +43,6 @@ where
 
     if let Err(e) = result {
         let body = format!("Encountered an error while running maintenance: {e:?}");
-        let mut hints = HashMap::new();
-        hints.insert("urgency".to_string(), Variant(Box::new(2u8) as _));
 
         notifications
             .notify(
@@ -59,17 +51,11 @@ where
                 "dialog-error-symbolic",
                 "Maintenance failed",
                 &body,
-                Vec::new(),
-                hints,
+                &[],
                 -1,
             )
             .await?;
     }
-
-    notifications
-        .stop()
-        .await
-        .context("failed to stop notifications")?;
 
     Ok(())
 }
@@ -124,9 +110,6 @@ async fn check_systemctl_failures(notifications: Notifications) -> Result<()> {
         body = format!("{} units failed to start normally.", failed.len());
     }
 
-    let mut hints = HashMap::new();
-    hints.insert("urgency".to_string(), Variant(Box::new(2u8) as _));
-
     let response = notifications
         .notify(
             "Maintenance",
@@ -134,14 +117,13 @@ async fn check_systemctl_failures(notifications: Notifications) -> Result<()> {
             "dialog-warning-symbolid",
             summary,
             &body,
-            vec!["default", "Investigate"],
-            hints,
+            &["default", "Investigate"],
             -1,
         )
         .await?;
 
     if let Notification::ActionInvoked(action_invoked) = response {
-        assert_eq!(action_invoked.arg_1, "default");
+        assert_eq!(action_invoked.args()?.arg_1, "default");
 
         Command::new("/usr/bin/kgx")
             .arg("--command=systemctl --failed")
@@ -178,9 +160,6 @@ async fn check_updates(notifications: Notifications) -> Result<()> {
         format!("{count} packages are ready to update.")
     };
 
-    let mut hints = HashMap::new();
-    hints.insert("urgency".to_string(), Variant(Box::new(2u8) as _));
-
     let response = notifications
         .notify(
             "Maintenance",
@@ -188,14 +167,13 @@ async fn check_updates(notifications: Notifications) -> Result<()> {
             "software-update-available",
             summary,
             &body,
-            vec!["default", "Update"],
-            hints,
+            &["default", "Update"],
             -1,
         )
         .await?;
 
     if let Notification::ActionInvoked(action_invoked) = response {
-        assert_eq!(action_invoked.arg_1, "default");
+        assert_eq!(action_invoked.args()?.arg_1, "default");
 
         Command::new("/usr/bin/kgx")
             .arg("--command=sudo pacman -Syu")
@@ -318,9 +296,6 @@ async fn check_journalctl_errors(notifications: Notifications) -> Result<()> {
         format!("{unmatched_count} errors not found in allowlist.")
     };
 
-    let mut hints = HashMap::new();
-    hints.insert("urgency".to_string(), Variant(Box::new(2u8) as _));
-
     let response = notifications
         .notify(
             "Maintenance",
@@ -328,14 +303,13 @@ async fn check_journalctl_errors(notifications: Notifications) -> Result<()> {
             "dialog-warning-symbolic",
             summary,
             &body,
-            vec!["default", "View Errors"],
-            hints,
+            &["default", "View Errors"],
             -1,
         )
         .await?;
 
     if let Notification::ActionInvoked(action_invoked) = response {
-        assert_eq!(action_invoked.arg_1, "default");
+        assert_eq!(action_invoked.args()?.arg_1, "default");
 
         Command::new("/usr/bin/xdg-open")
             .arg("journalctl_new.log")

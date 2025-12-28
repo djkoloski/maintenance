@@ -5,8 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1"
-dbus = { version = "0.9", features = ["futures"] }
-dbus-tokio = "0.7"
+zbus = { version = "5", default-features = false, features = ["tokio"] }
 futures = "0.3"
 log = "0.4"
 regex = "1"

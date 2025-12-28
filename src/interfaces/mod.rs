@@ -2,7 +2,6 @@
 
 #![allow(unused, clippy::all)]
 
-mod dbus;
 mod notifications;
 
-pub use self::{dbus::*, notifications::*};
+pub use self::notifications::*;
