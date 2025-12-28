@@ -52,17 +52,23 @@ impl Notifications {
             .await?
             .stream::<NameOwnerChanged>();
         if dbus.name_has_owner("org.freedesktop.Notifications").await? {
-            info!("notifications service already started");
+            let owner = dbus.get_name_owner("org.freedesktop.Notifications").await?;
+            info!("notifications service already owned by {owner}");
         } else {
-            let (_, signal) = stream
-                .next()
-                .await
-                .context("connection terminated while waiting for Notifications to be acquired")?;
-            info!(
-                "Owner for '{}' changed from '{}' to '{}'",
-                signal.arg0, signal.arg1, signal.arg2
-            );
-        }
+            loop {
+                let (_, signal) = stream.next().await.context(
+                    "connection terminated while waiting for Notifications service to be acquired",
+                )?;
+
+                if signal.arg0 == "org.freedesktop.Notifications" {
+                    info!(
+                        "owner for '{}' changed from '{}' to '{}'",
+                        signal.arg0, signal.arg1, signal.arg2
+                    );
+                    break;
+                }
+            }
+        };
         connection.remove_match(incoming_signal.token()).await?;
 
         let pending = Arc::new(Mutex::new(
