@@ -281,7 +281,7 @@ async fn check_journalctl_errors(notifications: Notifications) -> Result<()> {
     let mut error_log_path = PathBuf::from(&home);
     error_log_path.extend([".local", "state", "maintenance", "journalctl_new.log"]);
 
-    fs::write(error_log_path, error_log_contents)
+    fs::write(&error_log_path, error_log_contents)
         .await
         .context("failed to create journalctl log")?;
 
@@ -312,7 +312,7 @@ async fn check_journalctl_errors(notifications: Notifications) -> Result<()> {
         assert_eq!(action_invoked.args()?.arg_1, "default");
 
         Command::new("/usr/bin/xdg-open")
-            .arg("journalctl_new.log")
+            .arg(&error_log_path)
             .output()
             .await
             .context("failed to open journalctl log")?;
